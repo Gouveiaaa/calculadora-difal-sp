@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de DIFAL - SP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Crect x='8' y='8' width='240' height='240' rx='40' fill='%231a3d7c'/%3E%3Crect x='72' y='46' width='112' height='150' rx='10' fill='%23ffffff'/%3E%3Crect x='88' y='72' width='80' height='10' rx='4' fill='%238ab4f8'/%3E%3Crect x='88' y='94' width='80' height='10' rx='4' fill='%238ab4f8'/%3E%3Crect x='88' y='116' width='50' height='10' rx='4' fill='%238ab4f8'/%3E%3Ccircle cx='98' cy='160' r='7' fill='%231a3d7c'/%3E%3Ccircle cx='150' cy='182' r='7' fill='%231a3d7c'/%3E%3Cline x1='150' y1='158' x2='98' y2='184' stroke='%231a3d7c' stroke-width='9' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 20px auto; padding: 0 16px; color: #222; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+  th, td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; }
+  th { background: #f3f3f3; }
+  .tabela-wrap { overflow-x: auto; }
+  .card { border: 1px solid #ccc; border-radius: 8px; padding: 16px; margin: 16px 0; }
+  .btn { padding: 8px 14px; cursor: pointer; margin: 4px 8px 4px 0; }
+  .num { text-align: right; white-space: nowrap; }
+  .warn { background: #fff8e1; border: 1px solid #f0c36d; padding: 10px; border-radius: 6px; font-size: 13px; }
+  .erro { background: #fdecea; border: 1px solid #e57373; color: #8b0000; padding: 10px; border-radius: 6px; margin: 8px 0; font-size: 13px; }
+  .ok { color: #1b5e20; font-weight: bold; }
+  .bloqueio-link { display: inline-block; padding: 8px 14px; margin-top: 6px; background: #1a3d7c; color: #fff; border-radius: 6px; text-decoration: none; font-size: 13px; }
+  .aviso { background: #e8f0fe; border: 1px solid #8ab4f8; color: #1a3d7c; padding: 10px; border-radius: 6px; margin: 8px 0; font-size: 13px; }
+  .alerta-st { color: #b35900; font-size: 12px; }
+  input[type=text] { width: 220px; max-width: 100%; padding: 6px; box-sizing: border-box; }
+  .campo-largo { width: 360px; max-width: 100%; box-sizing: border-box; }
+  .so-print { display: none; }
+  @media print {
+    .noprint { display: none !important; }
+    .so-tela { display: none !important; }
+    .so-print { display: inline !important; }
+  }
+</style>
+</head>
+<body>
+
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+  <svg width="56" height="56" viewBox="0 0 256 256" role="img" aria-label="Logo DIFAL">
+    <rect x="8" y="8" width="240" height="240" rx="40" fill="#1a3d7c"/>
+    <rect x="72" y="46" width="112" height="150" rx="10" fill="#ffffff"/>
+    <rect x="88" y="72" width="80" height="10" rx="4" fill="#8ab4f8"/>
+    <rect x="88" y="94" width="80" height="10" rx="4" fill="#8ab4f8"/>
+    <rect x="88" y="116" width="50" height="10" rx="4" fill="#8ab4f8"/>
+    <circle cx="98" cy="160" r="7" fill="#1a3d7c"/>
+    <circle cx="150" cy="182" r="7" fill="#1a3d7c"/>
+    <line x1="150" y1="158" x2="98" y2="184" stroke="#1a3d7c" stroke-width="9" stroke-linecap="round"/>
+  </svg>
+  <h2 style="margin:0">Cálculo de DIFAL – Destino São Paulo</h2>
+</div>
+<div class="warn">Ferramenta de apoio. Revise classificações, alíquotas e vencimento com seu contador antes de pagar.</div>
+<div id="tabelaAliq" class="card noprint"></div>
+
+<div class="card noprint">
+  <div>
+    <label for="cnpj">CNPJ da empresa:</label>
+    <input type="text" id="cnpj" placeholder="00.000.000/0000-00" maxlength="18" inputmode="numeric">
+    <button class="btn" onclick="confirmarCNPJ()">Confirmar CNPJ</button>
+  </div>
+  <div id="cnpjOk" class="ok" style="margin-top:8px" role="status" aria-live="polite"></div>
+  <div id="status" style="font-size:13px;margin-top:6px" role="status" aria-live="polite"></div>
+  <div id="regimeErro" aria-live="polite"></div>
+  <p><label for="xmls">Envie um ou mais arquivos XML de NF-e de entrada:</label></p>
+  <input type="file" id="xmls" accept=".xml" multiple disabled>
+  <div id="erros" aria-live="polite"></div>
+  <div id="avisos" aria-live="polite"></div>
+</div>
+
+<div id="notas"></div>
+<div class="card" id="resumo" aria-live="polite"></div>
+
+<div class="card noprint">
+  <div style="margin-bottom:8px">
+    <label for="nomeEmpresa">Nome da empresa:</label>
+    <input type="text" id="nomeEmpresa" placeholder="Razão social" class="campo-largo" style="text-transform:uppercase" oninput="salvarEmpresa()">
+  </div>
+  <div style="margin-bottom:8px">
+    <label for="competencia">Competência:</label>
+    <input type="month" id="competencia" oninput="salvarEmpresa()">
+  </div>
+  <button class="btn" onclick="gerarGuia()">Gerar dados da guia DARE</button>
+  <button class="btn" onclick="window.print()">Imprimir</button>
+  <button class="btn" onclick="limparTudo()">Limpar tudo (nova consulta)</button>
+  <button class="btn" onclick="apagarSalvos()">Apagar dados salvos desta empresa</button>
+</div>
+<div id="guia"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURAÇÃO
+   Confirme alíquotas, tipos e CFOPs com seu contador antes de usar.
+   ===================================================================== */
+const ALIQ_SP = 0.18;                       // alíquota interna de SP
+const IMPORTADO = ['1', '2', '3', '8'];     // origens com alíquota de 4%
+// Alíquota interestadual por UF de origem (Resolução do Senado). Editável pelo contador.
+const ALIQ_UF = {
+  AC: 0.07, AL: 0.07, AM: 0.07, AP: 0.07, BA: 0.07, CE: 0.07, DF: 0.07, ES: 0.07,
+  GO: 0.07, MA: 0.07, MG: 0.12, MS: 0.07, MT: 0.07, PA: 0.07, PB: 0.07, PE: 0.07,
+  PI: 0.07, PR: 0.12, RJ: 0.12, RN: 0.07, RO: 0.07, RR: 0.07, RS: 0.12, SC: 0.12,
+  SE: 0.07, SP: 0.12, TO: 0.07
+};
+// Tipos que geram DIFAL. Está com revenda e industrialização incluídas (comportamento
+// original). Se o contador confirmar que não geram DIFAL, remova-os daqui.
+const TIPOS_DIFAL = ['uso', 'ativo', 'industrializacao', 'revenda'];
+// CFOP de compra interestadual → classificação sugerida. O usuário pode alterar.
+// Confirme esta tabela com o contador antes de publicar.
+const CFOP_TIPO = {
+  '2101': 'industrializacao',
+  '2102': 'revenda',
+  '2551': 'ativo',
+  '2556': 'uso'
+};
+const INCLUIR_IPI = false;                  // se true, soma vIPI na base do item
+const MAX_BYTES = 2 * 1024 * 1024;          // limite de tamanho por XML (2 MB)
+const CHAVE_STORAGE = 'difal_empresas';
+
+const TIPOS_LABEL = {
+  '': '— selecione —',
+  revenda: 'Compra para revenda',
+  industrializacao: 'Industrialização',
+  uso: 'Uso e consumo',
+  ativo: 'Ativo imobilizado'
+};
+
+let itens = [];
+let empresaCNPJ = '';
+let empresaInfo = null;
+let empresaHabilitada = false;   // true só para Simples Nacional ou MEI
+let consultaAtual = 0;           // identifica a última consulta à Receita
+
+/* ---------- utilitários ---------- */
+function soDigitos(s) { return String(s || '').replace(/\D/g, ''); }
+
+function fmtCNPJ(c) {
+  c = soDigitos(c);
+  return c.length === 14
+    ? c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+    : c;
+}
+
+function fmtData(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  return isNaN(d) ? s : d.toLocaleDateString('pt-BR');
+}
+
+function num(v) { return parseFloat(v) || 0; }
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'})[c]);
+}
+
+function brl(v) { return v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); }
+
+// Soma em centavos inteiros para evitar erros de ponto flutuante.
+function somaDifal(lista) {
+  return lista.reduce((s, i) => s + Math.round(difal(i) * 100), 0) / 100;
+}
+
+function t(el, tag) {
+  const n = el && el.getElementsByTagName(tag)[0];
+  return n ? n.textContent.trim() : '';
+}
+
+/* ---------- validação do CNPJ (dígitos verificadores) ---------- */
+function cnpjValido(c) {
+  if (!/^\d{14}$/.test(c) || /^(\d)\1{13}$/.test(c)) return false;
+  const calc = (base, pesos) => {
+    let s = 0;
+    for (let i = 0; i < pesos.length; i++) s += Number(base[i]) * pesos[i];
+    const r = s % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  const d1 = calc(c, [5,4,3,2,9,8,7,6,5,4,3,2]);
+  const d2 = calc(c.slice(0, 12) + d1, [6,5,4,3,2,9,8,7,6,5,4,3,2]);
+  return d1 === Number(c[12]) && d2 === Number(c[13]);
+}
+
+/* ---------- confirmação do CNPJ da empresa ---------- */
+function confirmarCNPJ() {
+  const c = soDigitos(document.getElementById('cnpj').value);
+  if (!cnpjValido(c)) {
+    alert('CNPJ inválido. Verifique os números digitados.');
+    return;
+  }
+  if (c !== empresaCNPJ && itens.length) {
+    if (!confirm('Trocar o CNPJ vai limpar as notas já carregadas. Continuar?')) return;
+    itens = [];
+  }
+  if (c !== empresaCNPJ) {
+    // nome da empresa anterior não pode ficar na tela nem na guia
+    document.getElementById('nomeEmpresa').value = '';
+  }
+  empresaCNPJ = c;
+  carregarEmpresa(c);
+  document.getElementById('cnpj').value = fmtCNPJ(c);
+  document.getElementById('cnpjOk').textContent = 'CNPJ ' + fmtCNPJ(c) + ' informado';
+  empresaHabilitada = false;
+  document.getElementById('xmls').disabled = true;
+  document.getElementById('regimeErro').innerHTML = '';
+  consultarReceita(c);
+  render();
+}
+
+async function consultarReceita(c) {
+  const id = ++consultaAtual;
+  const st = document.getElementById('status');
+  st.textContent = 'Consultando situação cadastral na Receita...';
+  try {
+    const r = await fetch('https://brasilapi.com.br/api/cnpj/v1/' + c);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if (id !== consultaAtual) return;          // resposta de um CNPJ anterior: descarta
+    empresaInfo = d;
+    document.getElementById('nomeEmpresa').value = (d.razao_social || '').toUpperCase();
+    if (d.opcao_pelo_simples === true || d.opcao_pelo_mei === true) {
+      const regime = d.opcao_pelo_simples === true ? 'Simples Nacional' : 'MEI';
+      empresaHabilitada = true;
+      document.getElementById('xmls').disabled = false;
+      document.getElementById('regimeErro').innerHTML =
+        '<div class="aviso">Regime ' + regime + ' confirmado pela Receita (BrasilAPI). Envio de notas liberado.</div>';
+    } else {
+      mostrarRegimeCadesp(c);
+    }
+    const situacao = d.descricao_situacao_cadastral || 'não informada';
+    const alerta = situacao !== 'ATIVA'
+      ? ' <span style="color:#b00">⚠ Situação diferente de ATIVA</span>' : '';
+    st.innerHTML = 'Razão social: <b>' + esc(d.razao_social) + '</b> | Situação: ' + esc(situacao) + alerta;
+  } catch (err) {
+    if (id !== consultaAtual) return;          // erro de uma consulta antiga: ignora
+    empresaInfo = null;
+    st.textContent = 'Não foi possível consultar a Receita agora. Razão social e situação não foram conferidas.';
+    mostrarRegimeCadesp(c);
+  }
+}
+
+/* ---------- bloqueio e liberação por regime ---------- */
+function liberarManual() {
+  const v = document.getElementById('regimeManual').value;
+  if (v !== 'simples' && v !== 'mei') {
+    alert('Para liberar, selecione Simples Nacional ou MEI. Outros regimes continuam bloqueados.');
+    return;
+  }
+  if (!confirm('Você confirma que consultou o regime desta empresa no ConsultaIE ou no CADESP? A responsabilidade pela informação é sua.')) return;
+  empresaHabilitada = true;
+  document.getElementById('regimeErro').innerHTML =
+    '<div class="aviso">Regime confirmado manualmente: ' + (v === 'simples' ? 'Simples Nacional' : 'MEI') + '.</div>';
+  document.getElementById('xmls').disabled = false;
+}
+
+function mostrarRegimeCadesp(c) {
+  empresaHabilitada = false;
+  document.getElementById('xmls').disabled = true;
+  document.getElementById('regimeErro').innerHTML =
+    '<div class="aviso"><b>Confira o regime no CADESP antes de enviar as notas.</b><br>' +
+    'Abra a consulta pública do CADESP, pesquise o CNPJ ' + esc(fmtCNPJ(c)) +
+    ' e veja o campo "Regime de Apuração".<br>' +
+    '<a class="bloqueio-link" href="https://www.cadesp.fazenda.sp.gov.br/" target="_blank" rel="noopener">' +
+    'Abrir consulta do CADESP</a>' +
+    '<div style="margin-top:10px"><label for="regimeManual">Regime de Apuração encontrado no CADESP:</label><br>' +
+    '<select id="regimeManual"><option value="">— selecione —</option>' +
+    '<option value="simples">SIMPLES NACIONAL</option>' +
+    '<option value="mei">MEI</option>' +
+    '<option value="outro">Outro regime</option></select> ' +
+    '<button class="btn" onclick="liberarPorCadesp()">Confirmar regime</button></div></div>';
+}
+
+function liberarPorCadesp() {
+  const v = document.getElementById('regimeManual').value;
+  if (v === 'outro') {
+    empresaHabilitada = false;
+    document.getElementById('xmls').disabled = true;
+    document.getElementById('regimeErro').innerHTML =
+      '<div class="erro"><b>Esta ferramenta atende somente empresas do Simples Nacional e MEI.</b> ' +
+      'Empresas de outros regimes precisam de outra ferramenta ou de apoio contábil.</div>';
+    return;
+  }
+  if (v !== 'simples' && v !== 'mei') {
+    alert('Selecione o regime exibido no CADESP.');
+    return;
+  }
+  if (!confirm('Você confirma que o CADESP mostra este regime para esta empresa? A responsabilidade pela informação é sua.')) return;
+  empresaHabilitada = true;
+  document.getElementById('regimeErro').innerHTML =
+    '<div class="aviso">Regime confirmado pelo CADESP: ' + (v === 'simples' ? 'Simples Nacional' : 'MEI') + '.</div>';
+  document.getElementById('xmls').disabled = false;
+}
+
+/* ---------- leitura das notas ---------- */
+document.getElementById('xmls').addEventListener('change', async e => {
+  const erros = [];
+  const avisos = [];
+  if (!empresaCNPJ || !empresaHabilitada) {
+    alert('Confirme o CNPJ e garanta que a empresa seja do Simples Nacional ou MEI antes de enviar as notas.');
+    e.target.value = '';
+    return;
+  }
+  for (const f of e.target.files) {
+    if (f.size > MAX_BYTES) {
+      erros.push(f.name + ': arquivo maior que 2 MB, não é uma NF-e comum. Verifique o arquivo.');
+      continue;
+    }
+    try {
+      const txt = await f.text();
+      const novos = parseNFe(txt, f.name);
+      if (!novos.length) throw new Error('nenhum item encontrado na NF-e');
+
+      const cnpjDest = novos[0].cnpjDest;
+      if (cnpjDest !== empresaCNPJ) {
+        const quem = cnpjDest ? fmtCNPJ(cnpjDest) : 'não identificado';
+        erros.push('NF-e ' + novos[0].nNF + ' (' + f.name + '): ERRO – NÃO PERTENCE A ESSE CNPJ. Destinatário da nota: ' + quem + '.');
+        continue;
+      }
+      const chaveNota = novos[0].chave;
+      if (chaveNota && itens.some(i => i.chave === chaveNota)) {
+        avisos.push('NF-e ' + novos[0].nNF + ' (' + f.name + '): ignorada, esta nota já foi carregada.');
+        continue;
+      }
+      if (novos[0].ufOrig === novos[0].ufDest) {
+        avisos.push('NF-e ' + novos[0].nNF + ' (' + f.name + '): ignorada, fornecedor do mesmo estado da empresa (' + novos[0].ufOrig + '). Não entra no cálculo de DIFAL.');
+        continue;
+      }
+      if (novos.some(i => i.st)) {
+        avisos.push('NF-e ' + novos[0].nNF + ' (' + f.name + '): contém itens com ICMS-ST. O cálculo não trata ST, confira esses itens com o contador.');
+      }
+      itens.push(...novos);
+    } catch (err) {
+      erros.push(f.name + ': não foi possível ler (' + err.message + ').');
+    }
+  }
+  e.target.value = '';
+  document.getElementById('erros').innerHTML = erros
+    .map(m => '<div class="erro">' + esc(m) + '</div>').join('');
+  document.getElementById('avisos').innerHTML = avisos
+    .map(m => '<div class="aviso">' + esc(m) + '</div>').join('');
+  salvarEmpresa();
+  render();
+});
+
+function parseNFe(xml, arquivo) {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('XML inválido');
+
+  // Evento de cancelamento não é nota de entrada.
+  const eventos = Array.from(doc.getElementsByTagName('tpEvento')).map(e => e.textContent.trim());
+  if (eventos.includes('110111')) throw new Error('arquivo é um evento de cancelamento, não uma nota de entrada');
+
+  const inf = doc.getElementsByTagName('infNFe')[0];
+  if (!inf) throw new Error('infNFe não encontrado');
+
+  // Nota cancelada (status 101 no protocolo de autorização) não entra no cálculo.
+  const cStat = t(doc.getElementsByTagName('protNFe')[0], 'cStat');
+  if (cStat === '101') throw new Error('nota cancelada na SEFAZ');
+
+  const ide = inf.getElementsByTagName('ide')[0];
+  const emit = inf.getElementsByTagName('emit')[0];
+  const dest = inf.getElementsByTagName('dest')[0];
+  if (!emit || !dest) throw new Error('emitente ou destinatário ausente');
+
+  // finNFe: 1 normal, 2 complementar, 3 ajuste, 4 devolução.
+  // Devolução não é compra, então é recusada.
+  const finNFe = t(ide, 'finNFe');
+  if (finNFe === '4') throw new Error('nota de devolução (finalidade 4) não entra no cálculo de DIFAL');
+
+  const chave = (inf.getAttribute('Id') || '').replace(/\D/g, '');   // chave de acesso (44 dígitos)
+  const ufEmit = t(emit.getElementsByTagName('enderEmit')[0], 'UF');
+  // Sem alíquota para a UF de origem, o cálculo não pode ser feito: recusa a nota aqui,
+  // para que a tela nunca quebre depois.
+  const origensImportadas = Array.from(inf.getElementsByTagName('det'))
+    .every(d => IMPORTADO.includes(t(d, 'orig')));
+  if (!origensImportadas && !(ufEmit in ALIQ_UF)) {
+    throw new Error('UF de origem sem alíquota cadastrada: "' + ufEmit + '"');
+  }
+  const ufDest = t(dest.getElementsByTagName('enderDest')[0], 'UF');
+  const cnpjDest = soDigitos(t(dest, 'CNPJ'));
+  const dataEmi = t(ide, 'dhEmi') || t(ide, 'dEmi');
+  const nNF = t(ide, 'nNF');
+  const fornecedor = t(emit, 'xNome');
+
+  return Array.from(inf.getElementsByTagName('det')).map(det => {
+    const prod = det.getElementsByTagName('prod')[0];
+    const cfop = t(prod, 'CFOP');
+    const base = num(t(prod, 'vProd')) + num(t(prod, 'vFrete')) + num(t(prod, 'vSeg'))
+               + num(t(prod, 'vOutro')) - num(t(prod, 'vDesc'));
+    const valor = INCLUIR_IPI ? base + num(t(det, 'vIPI')) : base;
+    return {
+      arquivo, chave, nNF, fornecedor, dataEmi, ufOrig: ufEmit, ufDest, cnpjDest,
+      nItem: det.getAttribute('nItem'),
+      desc: t(prod, 'xProd'), ncm: t(prod, 'NCM'), cfop,
+      orig: t(det, 'orig'), valor,
+      st: num(t(det, 'vICMSST')) > 0,
+      tipo: CFOP_TIPO[cfop] || ''          // pré-seleção pelo CFOP; o usuário pode mudar
+    };
+  });
+}
+
+/* ---------- cálculo ---------- */
+function aliqInterestadual(item) {
+  if (IMPORTADO.includes(item.orig)) return 0.04;
+  if (!(item.ufOrig in ALIQ_UF)) throw new Error('UF de origem sem alíquota cadastrada: ' + item.ufOrig);
+  return ALIQ_UF[item.ufOrig];
+}
+
+// Retorna o DIFAL do item em reais, arredondado em centavos.
+function difal(item) {
+  if (!TIPOS_DIFAL.includes(item.tipo)) return 0;
+  if (item.ufDest !== 'SP' || item.ufOrig === 'SP') return 0;
+  const aliq = aliqInterestadual(item);
+  const baseDestino = item.valor / (1 - ALIQ_SP);     // base de cálculo "por dentro"
+  const icmsDestino = baseDestino * ALIQ_SP;
+  const icmsOrigem = item.valor * aliq;               // ICMS interestadual "por fora"
+  return Math.max(0, Math.round((icmsDestino - icmsOrigem) * 100) / 100);
+}
+
+function setTipo(i, valor) { itens[i].tipo = valor; salvarEmpresa(); render(); }
+
+/* ---------- tabela de alíquotas ---------- */
+function renderTabelaAliq() {
+  const linhas = Object.keys(ALIQ_UF).sort().map(uf =>
+    '<tr><td>' + uf + '</td><td class="num">' + Math.round(ALIQ_UF[uf] * 100) + '%</td></tr>'
+  ).join('');
+  document.getElementById('tabelaAliq').innerHTML =
+    '<details><summary><b>Tabela de alíquotas interestaduais (UF de origem → SP)</b></summary>' +
+    '<p style="font-size:13px">Alíquota aplicada ao ICMS de origem. Produtos importados (origem 1, 2, 3 e 8) usam 4%. ' +
+    'Destino SP, alíquota interna de 18%.</p>' +
+    '<div class="tabela-wrap"><table><tr><th>UF de origem</th><th class="num">Alíquota</th></tr>' + linhas + '</table></div></details>';
+}
+renderTabelaAliq();
+
+/* ---------- dados salvos por empresa (neste navegador) ---------- */
+function lerSalvos() {
+  try { return JSON.parse(localStorage.getItem(CHAVE_STORAGE)) || {}; }
+  catch (e) { return {}; }
+}
+
+function gravarSalvos(todos) {
+  try { localStorage.setItem(CHAVE_STORAGE, JSON.stringify(todos)); } catch (e) {}
+}
+
+function salvarEmpresa() {
+  if (!empresaCNPJ) return;
+  const todos = lerSalvos();
+  todos[empresaCNPJ] = {
+    itens,
+    nome: document.getElementById('nomeEmpresa').value,
+    competencia: document.getElementById('competencia').value
+  };
+  gravarSalvos(todos);
+}
+
+function carregarEmpresa(c) {
+  const salvo = lerSalvos()[c];
+  if (!salvo) return false;
+  itens = salvo.itens || [];
+  document.getElementById('nomeEmpresa').value = salvo.nome || '';
+  document.getElementById('competencia').value = salvo.competencia || '';
+  return itens.length > 0;
+}
+
+function apagarSalvos() {
+  if (!empresaCNPJ) { alert('Informe e confirme o CNPJ primeiro.'); return; }
+  if (!confirm('Apagar as notas e os dados salvos desta empresa neste navegador?')) return;
+  const todos = lerSalvos();
+  delete todos[empresaCNPJ];
+  gravarSalvos(todos);
+  itens = [];
+  document.getElementById('nomeEmpresa').value = '';
+  document.getElementById('competencia').value = '';
+  render();
+}
+
+/* ---------- tela ---------- */
+function opcoesTipo(atual) {
+  return Object.keys(TIPOS_LABEL).map(v =>
+    '<option value="' + v + '"' + (atual === v ? ' selected' : '') + '>' + TIPOS_LABEL[v] + '</option>'
+  ).join('');
+}
+
+function render() {
+  const porNota = {};
+  itens.forEach((it, i) => {
+    const chave = it.chave || (it.nNF + '|' + it.fornecedor + '|' + it.arquivo);
+    (porNota[chave] = porNota[chave] || []).push(i);
+  });
+
+  let html = '';
+  for (const chave in porNota) {
+    const idx = porNota[chave];
+    const ref = itens[idx[0]];
+    html += '<div class="card"><h3>NF-e ' + esc(ref.nNF) + ' – ' + esc(ref.fornecedor) +
+      ' (' + esc(ref.ufOrig) + ' → ' + esc(ref.ufDest) + ')</h3>' +
+      '<div>Destinatário: <span class="ok">✔ confere com o CNPJ ' + fmtCNPJ(empresaCNPJ) + '</span></div>' +
+      '<div>Emissão: ' + esc(fmtData(ref.dataEmi)) + ' | Arquivo: ' + esc(ref.arquivo) + '</div>' +
+      '<div class="tabela-wrap"><table><tr><th>Item</th><th>Descrição</th><th>NCM</th><th>CFOP</th><th class="num">Valor</th>' +
+      '<th>Classificação</th><th class="num">DIFAL</th></tr>';
+    idx.forEach(i => {
+      const it = itens[i];
+      const st = it.st ? '<div class="alerta-st">⚠ ICMS-ST: confira</div>' : '';
+      html += '<tr>' +
+        '<td>' + esc(it.nItem) + '</td><td>' + esc(it.desc) + '</td><td>' + esc(it.ncm) +
+        '</td><td>' + esc(it.cfop) + '</td>' +
+        '<td class="num">' + brl(it.valor) + '</td>' +
+        '<td><select class="so-tela" aria-label="Classificação do item ' + esc(it.nItem) + '" onchange="setTipo(' + i + ', this.value)">' +
+          opcoesTipo(it.tipo) + '</select>' +
+          '<span class="so-print">' + esc(TIPOS_LABEL[it.tipo]) + '</span>' + st + '</td>' +
+        '<td class="num">' + brl(difal(it)) + '</td>' +
+        '</tr>';
+    });
+    html += '</table></div></div>';
+  }
+  document.getElementById('notas').innerHTML =
+    html || (empresaCNPJ ? '<p>Nenhuma nota carregada.</p>' : '<p>Informe e confirme o CNPJ para começar.</p>');
+
+  const totUso = somaDifal(itens.filter(i => i.tipo === 'uso'));
+  const totAtivo = somaDifal(itens.filter(i => i.tipo === 'ativo'));
+  const totInd = somaDifal(itens.filter(i => i.tipo === 'industrializacao'));
+  const totRev = somaDifal(itens.filter(i => i.tipo === 'revenda'));
+  const total = Math.round((totUso + totAtivo + totInd + totRev) * 100) / 100;
+  const pendentes = itens.filter(i => i.tipo === '').length;
+  document.getElementById('resumo').innerHTML =
+    '<h3>Resumo</h3>' +
+    '<div>DIFAL uso e consumo: <b>' + brl(totUso) + '</b></div>' +
+    '<div>DIFAL ativo imobilizado: <b>' + brl(totAtivo) + '</b></div>' +
+    '<div>DIFAL industrialização: <b>' + brl(totInd) + '</b></div>' +
+    '<div>DIFAL compra para revenda: <b>' + brl(totRev) + '</b></div>' +
+    '<div>Total DIFAL: <b>' + brl(total) + '</b></div>' +
+    (pendentes ? '<div style="color:#b35900">Itens sem classificação: ' + pendentes + '</div>' : '');
+}
+
+/* ---------- limpar tudo ---------- */
+function limparTudo() {
+  if (itens.length && !confirm('Isso apaga as notas carregadas e a classificação feita. Continuar?')) return;
+  itens = [];
+  empresaCNPJ = '';
+  empresaInfo = null;
+  empresaHabilitada = false;
+  consultaAtual++;                 // invalida consultas em andamento
+  document.getElementById('regimeErro').innerHTML = '';
+  document.getElementById('cnpj').value = '';
+  document.getElementById('nomeEmpresa').value = '';
+  document.getElementById('competencia').value = '';
+  document.getElementById('cnpjOk').textContent = '';
+  document.getElementById('status').textContent = '';
+  document.getElementById('xmls').value = '';
+  document.getElementById('xmls').disabled = true;
+  document.getElementById('erros').innerHTML = '';
+  document.getElementById('avisos').innerHTML = '';
+  document.getElementById('guia').innerHTML = '';
+  render();
+}
+
+/* ---------- guia ---------- */
+function gerarGuia() {
+  if (!empresaCNPJ) { alert('Confirme o CNPJ primeiro.'); return; }
+  if (!itens.length) { alert('Carregue as notas primeiro.'); return; }
+  const pendentes = itens.filter(i => i.tipo === '').length;
+  if (pendentes && !confirm('Há ' + pendentes + ' item(ns) sem classificação e eles não entram no cálculo. Continuar?')) return;
+
+  const compRaw = document.getElementById('competencia').value;   // AAAA-MM
+  if (!compRaw) {
+    alert('Informe a competência antes de gerar a guia.');
+    return;
+  }
+
+  const hoje = new Date();
+  // último dia do mês subsequente à geração. Confira o prazo no portal da SEFAZ-SP.
+  const venc = new Date(hoje.getFullYear(), hoje.getMonth() + 2, 0);
+
+  const totUso = somaDifal(itens.filter(i => i.tipo === 'uso'));
+  const totAtivo = somaDifal(itens.filter(i => i.tipo === 'ativo'));
+  const totInd = somaDifal(itens.filter(i => i.tipo === 'industrializacao'));
+  const totRev = somaDifal(itens.filter(i => i.tipo === 'revenda'));
+  const total = Math.round((totUso + totAtivo + totInd + totRev) * 100) / 100;
+  const competencia = compRaw.split('-').reverse().join('/');   // MM/AAAA
+  const razao = (document.getElementById('nomeEmpresa').value.trim() ||
+    (empresaInfo ? empresaInfo.razao_social : '(não informado)')).toUpperCase();
+
+  document.getElementById('guia').innerHTML =
+    '<div class="card">' +
+    '<h3>Dados para emissão da guia DARE – SEFAZ-SP</h3>' +
+    '<table>' +
+    '<tr><th>Empresa</th><td>' + esc(razao) + '</td></tr>' +
+    '<tr><th>CNPJ</th><td>' + esc(fmtCNPJ(empresaCNPJ)) + '</td></tr>' +
+    '<tr><th>Competência</th><td>' + esc(competencia) + '</td></tr>' +
+    '<tr><th>Data de geração</th><td>' + hoje.toLocaleDateString('pt-BR') + '</td></tr>' +
+    '<tr><th>Vencimento (confirmar)</th><td>' + venc.toLocaleDateString('pt-BR') + '</td></tr>' +
+    '<tr><th>DIFAL uso e consumo</th><td>' + brl(totUso) + '</td></tr>' +
+    '<tr><th>DIFAL ativo imobilizado</th><td>' + brl(totAtivo) + '</td></tr>' +
+    '<tr><th>DIFAL industrialização</th><td>' + brl(totInd) + '</td></tr>' +
+    '<tr><th>DIFAL compra para revenda</th><td>' + brl(totRev) + '</td></tr>' +
+    '<tr><th>Valor total a recolher</th><td><b>' + brl(total) + '</b></td></tr>' +
+    '</table>' +
+    '<p style="font-size:13px">Os dados acima devem ser lançados na emissão do DARE no portal da Secretaria da Fazenda de SP.</p>' +
+    '</div>';
+}
+</script>
+</body>
+</html>
